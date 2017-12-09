@@ -1,0 +1,3 @@
+Cython==0.27.3
+numpy==1.13.3
+PyMaxflow==1.2.4
