@@ -60,7 +60,7 @@ def onmouse(event, x, y, flags, param):
     global img, img2, drawing, value, mask, rectangle, rect, rect_or_mask, ix, iy, rect_over
 
     # Draw Rectangle
-    if event == cv2.EVENT_RBUTTONDOWN:
+    if event == cv2.EVENT_MBUTTONDOWN:
         rectangle = True
         ix, iy = x, y
 
@@ -71,7 +71,7 @@ def onmouse(event, x, y, flags, param):
             rect = (min(ix, x), min(iy, y), abs(ix - x), abs(iy - y))
             rect_or_mask = 0
 
-    elif event == cv2.EVENT_RBUTTONUP:
+    elif event == cv2.EVENT_MBUTTONUP:
         rectangle = False
         rect_over = True
         cv2.rectangle(img, (ix, iy), (x, y), BLUE, 2)
@@ -151,6 +151,7 @@ if __name__ == '__main__':
             bar = np.zeros((img.shape[0], 5, 3), np.uint8)
             res = np.hstack((img2, bar, img, bar, output))
             cv2.imwrite('grabcut_output.png', res)
+            cv2.imwrite('grabcut_out.png', output)
             print(" Result saved as image \n")
         elif k == ord('r'):  # reset everything
             print("resetting \n")
