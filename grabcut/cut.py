@@ -110,9 +110,11 @@ class GrabCut:
         self.k = k
         self.height = img.shape[0]
         self.width = img.shape[1]
-        self.trimap = np.zeros((img.shape[0], img.shape[1]))
-        self.matte = np.zeros((img.shape[0], img.shape[1]))
-        self.comp_index = np.zeros((img.shape[0], img.shape[1]))
+        self.trimap = np.zeros((self.height, self.width))
+        self.matte = np.zeros((self.height, self.width))
+        self.comp_index = np.zeros((self.height, self.width))
+        self.d_fgd = np.zeros((self.height, self.width))
+        self.d_bgd = np.zeros((self.height, self.width))
         self.bg = 0
         self.fg = 1
         self.pr_bg = 2
@@ -141,13 +143,23 @@ class GrabCut:
         self.fgd_pixels = self.img[self.fgd]
 
     def prob_pixel_in_gmm(self, pixel, model):
-        """Calculate the probability a pixel is in the specified GMM."""
-        sum = 0
-        for i in (1, 6):
-            sum += model.weights[i] / np.sqrt(model.det_cov[i])
-            * np.exp(0.5 * np.dot((pixel - model.means[i]).T * (np.dot(model.inv_cov, pixel - model.mean[i]))))
+        """Calculate the probability a pixel is in a model, and the cluster index that it would belong to."""
+        prob_vals = []
+        s = 0
+        for i in range(model.k):
+            inv = model.inv_cov[i]
+            det = model.det_cov[i]
 
-        return -np.log(sum)
+            diff = pixel - model.means[i]
+            diff = np.asarray([diff])
+            m = np.dot(diff.T, inv)
+            m = np.dot(m, diff)
+            m = np.exp(0.5 * m) / np.sqrt(det)
+            prob_vals.append(m)
+            m *= model.weights[i]
+            s += m
+        ind = np.argmax(np.asarray(prob_vals))
+        return -np.log(s), ind
 
     def get_beta(self):
         """Get the beta value based on the paper."""
@@ -174,7 +186,7 @@ class GrabCut:
                 z_m = self.img[y][x]
                 if y > 0 and x > 0:
                     diag_left[y][x] = 50 / np.sqrt(2) * np.exp(-beta * (z_m - self.img[y - 1][x - 1])**2)
-                if y > 0 and x < self.img.shape[1] - 1:
+                if y > 0 and x < self.width - 1:
                     diag_right[y][x] = 50 / np.sqrt(2) * np.exp(-beta * (z_m - self.img[y - 1][x + 1])**2)
                 if x > 0:
                     left[y][x] = 50 * np.exp(-beta * (z_m - self.img[y][x - 1])**2)
@@ -184,10 +196,18 @@ class GrabCut:
         self.max_weight = max(max(diag_left), max(
             diag_right), max(left), max(up))
 
-        diag_left_struct = np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]])
-        diag_right_struct = np.array([[0, 0, 1], [0, 0, 0], [0, 0, 0]])
-        up_struct = np.array([[0, 1, 0], [0, 0, 0], [0, 0, 0]])
-        left_struct = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 0]])
+        diag_left_struct = np.array([[1, 0, 0],
+                                     [0, 0, 0],
+                                     [0, 0, 0]])
+        diag_right_struct = np.array([[0, 0, 1],
+                                      [0, 0, 0],
+                                      [0, 0, 0]])
+        up_struct = np.array([[0, 1, 0],
+                              [0, 0, 0],
+                              [0, 0, 0]])
+        left_struct = np.array([[0, 0, 0],
+                                [1, 0, 0],
+                                [0, 0, 0]])
         self.graph.add_grid_edges(nodeids, weights=diag_left, structure=diag_left_struct,
                                   symmetric=True)
         self.graph.add_grid_edges(nodeids, weights=diag_right, structure=diag_right_struct,
@@ -201,14 +221,43 @@ class GrabCut:
         """Build the target links."""
         for y in range(self.height):
             for x in range(self.width):
-                if self.trimap[y][x] == 0:
+                if self.trimap[y][x] == self.bg:
                     self.graph.add_tedge(nodeids[y][x], 0, self.max_weight)
-                elif self.trimap[y][x] == 1:
+                elif self.trimap[y][x] == self.fg:
                     self.graph.add_tedge(nodeids[y][x], self.max_weight, 0)
                 else:
-                    d_f = self.prob_pixel_in_gmm(self.img[y][x], self.foreground_gmm)
-                    d_b = self.prob_pixel_in_gmm(self.img[y][x], self.background_gmm)
+                    d_f = self.d_fgd[y][x]
+                    d_b = self.d_bgd[y][x]
                     self.graph.add_tedge(nodeids[y][x], d_f, d_b)
+
+    def update_gmm_components(self):
+        """Update self.comp_index."""
+        self.comp_index = np.zeros((self.height, self.width))
+        for y, x in zip(range(self.height), range(self.width)):
+            df, ind_f = self.prob_pixel_in_gmm(self.img[y][x], self.foreground_gmm)
+            db, ind_b = self.prob_pixel_in_gmm(self.img[y][x], self.background_gmm)
+            if self.trimap[y][x] == self.bg or self.trimap[y][x] == self.pr_bg:
+                self.comp_index[y][x] = ind_f
+            else:
+                self.comp_index[y][x] = ind_b
+            self.d_fgd[y][x] = df
+            self.d_bgd[y][x] = db
+
+    def update_trimap_from_segmentation(self, segmentation):
+        """Update the trimap based on the segmentation."""
+        for y, x in zip(range(self.height), range(self.width)):
+            if self.trimap[y][x] == self.pr_bg or self.trimap[y][x] == self.pr_fg:
+                if segmentation[y][x]:
+                    self.trimap[y][x] = self.pr_fg
+                else:
+                    self.trimap[y][x] = self.pr_bg
+
+    def update_trimap_from_mask(self, mask):
+        """Update the trimap based on the mask."""
+        # This is its own function because it might need more processing in the future
+        # Idk
+        for y, x in zip(range(self.height), range(self.width)):
+            self.trimap[y][x] = mask[y][x]
 
     '''
     inputs:
@@ -222,11 +271,13 @@ class GrabCut:
     outputs:
 
     '''
-    def grab_cut(self, img, mask, rect, background, foreground, iteration, use_mask):
+    def grab_cut(self, img, mask, rect, use_mask):
         """Perform an iteration of grabcut."""
         if not use_mask:
             self.trimap = self.convert_rect_to_mask(rect, img)
             self.matte = self.convert_rect_to_matte(rect, img)
+        else:
+            self.update_trimap_from_mask(mask)
 
         self.set_bgd_fgd()
         foreground_gmm = GMM()
@@ -240,9 +291,7 @@ class GrabCut:
 
         foreground_gmm.redistribute_pixels()
         background_gmm.redistribute_pixels()
-
-        foreground_gmm.update_gmm()
-        background_gmm.update_gmm()
+        self.update_gmm_components()
 
         # build the graph
         self.graph = maxflow.graph[float]()
@@ -252,3 +301,5 @@ class GrabCut:
 
         sgm = self.graph.get_grid_segments(nodeids)
         sgm = np.bitwise_and(sgm, self.matte)
+        self.update_trimap_from_segmentation(sgm)
+        return self.trimap
