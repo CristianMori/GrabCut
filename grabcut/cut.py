@@ -112,6 +112,21 @@ class GMM:
                 self.det_cov = np.linalg.det(self.cov[i])
             self.inv_cov[i] = np.linalg.inv(self.cov[i])
 
+     @staticmethod
+     def load_gmm_from_values(weight_vals, mean_vals, covar_vals):
+        """Load a gmm from some hardcoded values."""
+        assert(len(weight_vals is 5))
+        assert(len(mean_vals is 15))
+        assert(len(covar_vals is 45))
+        gmm = GMM()
+        for i in range(5):
+            gmm.weights[i] = weight_vals[i]
+            gmm.means[i] = mean_vals[3 * i:3 * i + 3]
+            gmm.cov[i] = covar_vals[9 * i:9 * i + 9].reshape((3, 3))
+        gmm.calculate_values_from_hardcoded()
+        return gmm
+
+
 
 class GrabCut:
     """This class represents the engine for grabcut."""
@@ -319,18 +334,24 @@ class GrabCut:
         self.set_bgd_fgd()
         if bgd_gmm is None:
             self.background_gmm = GMM()
+
+            for pixel in self.bgd_pixels:
+                self.background_gmm.add_pixel(pixel, 0)
+
+            self.background_gmm.redistribute_pixels()
         else:
             self.background_gmm = bgd_gmm
-        self.foreground_gmm = GMM()
 
-        for pixel in self.fgd_pixels:
-            self.foreground_gmm.add_pixel(pixel, 0)
+        if fgd_gmm is None:
+            self.foreground_gmm = GMM()
 
-        for pixel in self.bgd_pixels:
-            self.background_gmm.add_pixel(pixel, 0)
+            for pixel in self.fgd_pixels:
+                self.foreground_gmm.add_pixel(pixel, 0)
 
-        self.foreground_gmm.redistribute_pixels()
-        self.background_gmm.redistribute_pixels()
+            self.foreground_gmm.redistribute_pixels()
+        else:
+            self.foreground_gmm = fgd_gmm
+
         self.update_gmm_components()
         print("Updated GMM components")
 
