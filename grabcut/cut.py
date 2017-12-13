@@ -2,7 +2,7 @@
 # import cv2
 import numpy as np
 import maxflow
-from graph import Graph
+# from graph import Graph
 # cv2.grabCut(img2, mask, rect, bgdmodel, fgdmodel, 1, cv2.GC_INIT_WITH_RECT)
 
 
@@ -102,9 +102,15 @@ class GMM:
             self.pixels[i] = c_i
             self.pixels[n] = c_n
             self.update_gmm()
-    def prob_pixel_in_cluster(self, pixel, i):
-        pass
 
+    def calculate_values_from_hardcoded(self):
+        """Calculate det and inv from hardcoded values."""
+        for i in range(self.k):
+            self.det_cov[i] = np.linalg.det(self.cov[i])
+            while self.det_cov[i] <= 0:
+                self.cov[i] += np.diag([0.1, 0.1, 0.1])
+                self.det_cov = np.linalg.det(self.cov[i])
+            self.inv_cov[i] = np.linalg.inv(self.cov[i])
 
 
 class GrabCut:
@@ -149,12 +155,6 @@ class GrabCut:
         self.fgd_pixels = self.img[self.fgd]
 
     def prob_pixel_in_gmm(self, pixel, model):
-        # """Calculate the probability a pixel is in a model, and the cluster index that it would belong to."""
-        # sum = 0
-        # for i in (1, 6):
-        #     sum += model.weights[i] / np.sqrt(model.det_cov[i]) * np.exp(0.5 * np.dot((pixel - model.means[i]).T, (np.dot(model.inv_cov, pixel - model.means[i]))))
-
-        # return -np.log(sum)
         """Calculate the probability a pixel is in a model, and the cluster index that it would belong to."""
         prob_vals = []
         s = 0
@@ -198,35 +198,35 @@ class GrabCut:
         for y in range(self.height):
             for x in range(self.width):
                 z_m = self.img[y][x]
-                node_id = nodeids[y][x]
+                # node_id = nodeids[y][x]
                 self.max_weight = float('-inf')
                 if y > 0 and x > 0:
                     diff = (z_m - self.img[y - 1][x - 1])
                     diag_left[y][x] = 50 / np.sqrt(2) * np.exp(-beta * np.dot(diff, diff))
                     if diag_left[y][x] > self.max_weight:
                         self.max_weight = diag_left[y][x]
-                    diag_left_id = nodeids[y - 1][x - 1]
+                    # diag_left_id = nodeids[y - 1][x - 1]
                     # self.graph.add_edge(node_id, diag_left_id, diag_left[y][x], diag_left[y][x])
                 if y > 0 and x < self.width - 1:
                     diff = (z_m - self.img[y - 1][x + 1])
                     diag_right[y][x] = 50 / np.sqrt(2) * np.exp(-beta * np.dot(diff, diff))
                     if diag_right[y][x] > self.max_weight:
                         self.max_weight = diag_right[y][x]
-                    diag_right_id = nodeids[y - 1][x + 1]
+                    # diag_right_id = nodeids[y - 1][x + 1]
                     # self.graph.add_edge(node_id, diag_right_id, diag_right[y][x], diag_right[y][x])
                 if x > 0:
                     diff = (z_m - self.img[y][x - 1])
                     left[y][x] = 50 * np.exp(-beta * np.dot(diff, diff))
                     if left[y][x] > self.max_weight:
                         self.max_weight = left[y][x]
-                    left_id = nodeids[y][x - 1]
+                    # left_id = nodeids[y][x - 1]
                     # self.graph.add_edge(node_id, left_id, left[y][x], left[y][x])
                 if y > 0:
                     diff = (z_m - self.img[y - 1][x])
                     up[y][x] = 50 * np.exp(-beta * np.dot(diff, diff))
                     if up[y][x] > self.max_weight:
                         self.max_weight = up[y][x]
-                    up_id = nodeids[y - 1][x]
+                    # up_id = nodeids[y - 1][x]
                     # self.graph.add_edge(node_id, up_id, up[y][x], up[y][x])
 
         diag_left_struct = np.array([[1, 0, 0],
@@ -308,7 +308,7 @@ class GrabCut:
     outputs:
 
     '''
-    def grab_cut(self, img, mask, rect, use_mask):
+    def grab_cut(self, img, mask, rect, use_mask, bgd_gmm=None, fgd_gmm=None):
         """Perform an iteration of grabcut."""
         if not use_mask:
             self.trimap = self.convert_rect_to_mask(rect, img)
@@ -317,8 +317,11 @@ class GrabCut:
             self.update_trimap_from_mask(mask)
 
         self.set_bgd_fgd()
+        if bgd_gmm is None:
+            self.background_gmm = GMM()
+        else:
+            self.background_gmm = bgd_gmm
         self.foreground_gmm = GMM()
-        self.background_gmm = GMM()
 
         for pixel in self.fgd_pixels:
             self.foreground_gmm.add_pixel(pixel, 0)
