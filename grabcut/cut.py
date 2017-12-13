@@ -2,6 +2,7 @@
 # import cv2
 import numpy as np
 import maxflow
+from graph import Graph
 # cv2.grabCut(img2, mask, rect, bgdmodel, fgdmodel, 1, cv2.GC_INIT_WITH_RECT)
 
 
@@ -46,6 +47,9 @@ class GMM:
                 self.cov[i] = np.cov(self.pixels[i], rowvar=False, bias=True)
                 # print("cov ", i, self.cov[i])
                 self.det_cov[i] = np.linalg.det(self.cov[i])
+                while self.det_cov[i] <= 0:
+                    self.cov[i] += np.diag([0.1, 0.1, 0.1])
+                    self.det_cov = np.linalg.det(self.cov[i])
                 self.inv_cov[i] = np.linalg.inv(self.cov[i])
 
                 evals, evects = np.linalg.eig(self.cov[i])
@@ -59,6 +63,27 @@ class GMM:
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     '''
 
+    # def redistribute_pixels(self):
+    #     """Redistribute the pixels to different clusters."""
+    #     self.update_gmm()
+    #     for i in range(1, self.k):
+    #         n = np.argmax(self.eigenvalues)
+    #         e_n = self.eigenvectors[n]
+    #         rhs = np.dot(e_n.T, self.means[n])
+    #         lhs = np.dot(e_n.T, np.array(self.pixels[n]).T)
+    #         # print("lhs: ", lhs)
+    #         # print("rhs: ", rhs)
+    #         # e_n = np.tile(e_n, (len(self.pixels[n]), 1))
+    #         indices1 = np.where(lhs <= rhs)
+    #         indices2 = np.where(lhs > rhs)
+    #         # print(indices1)
+    #         # print(indices2)
+    #         # print(self.pixels[n])
+    #         temp = np.asarray(self.pixels[n])
+    #         self.pixels[i] = temp[indices1]
+    #         self.pixels[n] = temp[indices2]
+    #         self.update_gmm()
+
     def redistribute_pixels(self):
         """Redistribute the pixels to different clusters."""
         self.update_gmm()
@@ -66,39 +91,20 @@ class GMM:
             n = np.argmax(self.eigenvalues)
             e_n = self.eigenvectors[n]
             rhs = np.dot(e_n.T, self.means[n])
-            lhs = np.dot(e_n.T, np.array(self.pixels[n]).T)
-            # print("lhs: ", lhs)
-            # print("rhs: ", rhs)
-            # e_n = np.tile(e_n, (len(self.pixels[n]), 1))
-            indices1 = np.where(lhs <= rhs)
-            indices2 = np.where(lhs > rhs)
-            # print(indices1)
-            # print(indices2)
-            # print(self.pixels[n])
-            temp = np.asarray(self.pixels[n])
-            self.pixels[i] = temp[indices1]
-            self.pixels[n] = temp[indices2]
+            c_i = []
+            c_n = []
+            for pixel in self.pixels[n]:
+                lhs = np.dot(e_n.T, pixel)
+                if lhs <= rhs:
+                    c_i.append(pixel)
+                else:
+                    c_n.append(pixel)
+            self.pixels[i] = c_i
+            self.pixels[n] = c_n
             self.update_gmm()
+    def prob_pixel_in_cluster(self, pixel, i):
+        pass
 
-    # def redistribute_pixels(self):
-    #     self.update_gmm()
-    #     for i in range(1, self.k):
-    #         n = np.argmax(self.eigenvalues)
-    #         e_n = self.eigenvectors[n]
-    #         rhs = np.dot(e_n.T, self.means[n])
-    #         c_i = []
-    #         c_n = []
-    #         print("rhs: ", rhs)
-    #         for pixel in self.pixels[n]:
-    #             lhs = np.dot(e_n.T, pixel)
-    #             print("lhs: ", lhs)
-    #             if lhs <= rhs:
-    #                 c_i.append(pixel)
-    #             else:
-    #                 c_n.append(pixel)
-    #         self.pixels[i] = c_i
-    #         self.pixels[n] = c_n
-    #         self.update_gmm()
 
 
 class GrabCut:
@@ -143,6 +149,12 @@ class GrabCut:
         self.fgd_pixels = self.img[self.fgd]
 
     def prob_pixel_in_gmm(self, pixel, model):
+        # """Calculate the probability a pixel is in a model, and the cluster index that it would belong to."""
+        # sum = 0
+        # for i in (1, 6):
+        #     sum += model.weights[i] / np.sqrt(model.det_cov[i]) * np.exp(0.5 * np.dot((pixel - model.means[i]).T, (np.dot(model.inv_cov, pixel - model.means[i]))))
+
+        # return -np.log(sum)
         """Calculate the probability a pixel is in a model, and the cluster index that it would belong to."""
         prob_vals = []
         s = 0
@@ -152,14 +164,16 @@ class GrabCut:
 
             diff = pixel - model.means[i]
             diff = np.asarray([diff])
-            m = np.dot(diff.T, inv)
-            m = np.dot(m, diff)
-            m = np.exp(0.5 * m) / np.sqrt(det)
+            m = np.dot(inv, diff.T)
+            m = np.dot(diff, m)
+            # print(inv, diff, m)
+            m = (np.exp(-0.5 * m) / np.sqrt(det))[0][0]
             prob_vals.append(m)
             m *= model.weights[i]
             s += m
         ind = np.argmax(np.asarray(prob_vals))
-        return -np.log(s), ind
+        # print(-np.log(s)[0])
+        return -np.log(s)[0], ind
 
     def get_beta(self):
         """Get the beta value based on the paper."""
@@ -184,17 +198,36 @@ class GrabCut:
         for y in range(self.height):
             for x in range(self.width):
                 z_m = self.img[y][x]
+                node_id = nodeids[y][x]
+                self.max_weight = float('-inf')
                 if y > 0 and x > 0:
-                    diag_left[y][x] = 50 / np.sqrt(2) * np.exp(-beta * (z_m - self.img[y - 1][x - 1])**2)
+                    diff = (z_m - self.img[y - 1][x - 1])
+                    diag_left[y][x] = 50 / np.sqrt(2) * np.exp(-beta * np.dot(diff, diff))
+                    if diag_left[y][x] > self.max_weight:
+                        self.max_weight = diag_left[y][x]
+                    diag_left_id = nodeids[y - 1][x - 1]
+                    # self.graph.add_edge(node_id, diag_left_id, diag_left[y][x], diag_left[y][x])
                 if y > 0 and x < self.width - 1:
-                    diag_right[y][x] = 50 / np.sqrt(2) * np.exp(-beta * (z_m - self.img[y - 1][x + 1])**2)
+                    diff = (z_m - self.img[y - 1][x + 1])
+                    diag_right[y][x] = 50 / np.sqrt(2) * np.exp(-beta * np.dot(diff, diff))
+                    if diag_right[y][x] > self.max_weight:
+                        self.max_weight = diag_right[y][x]
+                    diag_right_id = nodeids[y - 1][x + 1]
+                    # self.graph.add_edge(node_id, diag_right_id, diag_right[y][x], diag_right[y][x])
                 if x > 0:
-                    left[y][x] = 50 * np.exp(-beta * (z_m - self.img[y][x - 1])**2)
+                    diff = (z_m - self.img[y][x - 1])
+                    left[y][x] = 50 * np.exp(-beta * np.dot(diff, diff))
+                    if left[y][x] > self.max_weight:
+                        self.max_weight = left[y][x]
+                    left_id = nodeids[y][x - 1]
+                    # self.graph.add_edge(node_id, left_id, left[y][x], left[y][x])
                 if y > 0:
-                    up[y][x] = 50 * np.exp(-beta * (z_m - self.img[y - 1][x])**2)
-
-        self.max_weight = max(max(diag_left), max(
-            diag_right), max(left), max(up))
+                    diff = (z_m - self.img[y - 1][x])
+                    up[y][x] = 50 * np.exp(-beta * np.dot(diff, diff))
+                    if up[y][x] > self.max_weight:
+                        self.max_weight = up[y][x]
+                    up_id = nodeids[y - 1][x]
+                    # self.graph.add_edge(node_id, up_id, up[y][x], up[y][x])
 
         diag_left_struct = np.array([[1, 0, 0],
                                      [0, 0, 0],
@@ -222,42 +255,46 @@ class GrabCut:
         for y in range(self.height):
             for x in range(self.width):
                 if self.trimap[y][x] == self.bg:
-                    self.graph.add_tedge(nodeids[y][x], 0, self.max_weight)
-                elif self.trimap[y][x] == self.fg:
                     self.graph.add_tedge(nodeids[y][x], self.max_weight, 0)
+                elif self.trimap[y][x] == self.fg:
+                    self.graph.add_tedge(nodeids[y][x], 0, self.max_weight)
                 else:
                     d_f = self.d_fgd[y][x]
                     d_b = self.d_bgd[y][x]
+                    # print(d_b, d_f)
                     self.graph.add_tedge(nodeids[y][x], d_f, d_b)
 
     def update_gmm_components(self):
         """Update self.comp_index."""
         self.comp_index = np.zeros((self.height, self.width))
-        for y, x in zip(range(self.height), range(self.width)):
-            df, ind_f = self.prob_pixel_in_gmm(self.img[y][x], self.foreground_gmm)
-            db, ind_b = self.prob_pixel_in_gmm(self.img[y][x], self.background_gmm)
-            if self.trimap[y][x] == self.bg or self.trimap[y][x] == self.pr_bg:
-                self.comp_index[y][x] = ind_f
-            else:
-                self.comp_index[y][x] = ind_b
-            self.d_fgd[y][x] = df
-            self.d_bgd[y][x] = db
+        for y in range(self.height):
+            for x in range(self.width):
+                df, ind_f = self.prob_pixel_in_gmm(self.img[y][x], self.foreground_gmm)
+                db, ind_b = self.prob_pixel_in_gmm(self.img[y][x], self.background_gmm)
+                if self.trimap[y][x] == self.bg or self.trimap[y][x] == self.pr_bg:
+                    self.comp_index[y][x] = ind_f
+                else:
+                    self.comp_index[y][x] = ind_b
+                self.d_fgd[y][x] = df
+                self.d_bgd[y][x] = db
 
     def update_trimap_from_segmentation(self, segmentation):
         """Update the trimap based on the segmentation."""
-        for y, x in zip(range(self.height), range(self.width)):
-            if self.trimap[y][x] == self.pr_bg or self.trimap[y][x] == self.pr_fg:
-                if segmentation[y][x]:
-                    self.trimap[y][x] = self.pr_fg
-                else:
-                    self.trimap[y][x] = self.pr_bg
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.trimap[y][x] == self.pr_bg or self.trimap[y][x] == self.pr_fg:
+                    if segmentation[y][x]:
+                        self.trimap[y][x] = self.pr_fg
+                    else:
+                        self.trimap[y][x] = self.pr_bg
 
     def update_trimap_from_mask(self, mask):
         """Update the trimap based on the mask."""
         # This is its own function because it might need more processing in the future
         # Idk
-        for y, x in zip(range(self.height), range(self.width)):
-            self.trimap[y][x] = mask[y][x]
+        for y in range(self.height):
+            for x in range(self.width):
+                self.trimap[y][x] = mask[y][x]
 
     '''
     inputs:
@@ -280,26 +317,34 @@ class GrabCut:
             self.update_trimap_from_mask(mask)
 
         self.set_bgd_fgd()
-        foreground_gmm = GMM()
-        background_gmm = GMM()
+        self.foreground_gmm = GMM()
+        self.background_gmm = GMM()
 
         for pixel in self.fgd_pixels:
-            foreground_gmm.add_pixel(pixel, 0)
+            self.foreground_gmm.add_pixel(pixel, 0)
 
         for pixel in self.bgd_pixels:
-            background_gmm.add_pixel(pixel, 0)
+            self.background_gmm.add_pixel(pixel, 0)
 
-        foreground_gmm.redistribute_pixels()
-        background_gmm.redistribute_pixels()
+        self.foreground_gmm.redistribute_pixels()
+        self.background_gmm.redistribute_pixels()
         self.update_gmm_components()
+        print("Updated GMM components")
 
         # build the graph
-        self.graph = maxflow.graph[float]()
+        self.graph = maxflow.Graph[float]()
+        # self.graph = Graph()
         nodeids = self.graph.add_grid_nodes(
             (self.img.shape[0], self.img.shape[1]))
+        print("Created graph")
+        # self.update_gmm_components()
+        self.build_n_link(nodeids)
+        self.build_t_link(nodeids)
+        print("Added weights")
         self.graph.maxflow()
+        print("Finished maxflow")
 
-        sgm = self.graph.get_grid_segments(nodeids)
-        sgm = np.bitwise_and(sgm, self.matte)
+        sgm = self.graph.get_grid_segments(nodeids).astype(np.uint32)
+        sgm = np.bitwise_and(sgm, self.matte.astype(np.uint32))
         self.update_trimap_from_segmentation(sgm)
         return self.trimap

@@ -60,7 +60,7 @@ def onmouse(event, x, y, flags, param):
     global img, img2, drawing, value, mask, rectangle, rect, rect_or_mask, ix, iy, rect_over
 
     # Draw Rectangle
-    if event == cv2.EVENT_MBUTTONDOWN:
+    if event == cv2.EVENT_RBUTTONDOWN:
         rectangle = True
         ix, iy = x, y
 
@@ -71,7 +71,7 @@ def onmouse(event, x, y, flags, param):
             rect = (min(ix, x), min(iy, y), abs(ix - x), abs(iy - y))
             rect_or_mask = 0
 
-    elif event == cv2.EVENT_MBUTTONUP:
+    elif event == cv2.EVENT_RBUTTONUP:
         rectangle = False
         rect_over = True
         cv2.rectangle(img, (ix, iy), (x, y), BLUE, 2)
