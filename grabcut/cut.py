@@ -113,6 +113,10 @@ class GrabCut:
         self.trimap = np.zeros((img.shape[0], img.shape[1]))
         self.matte = np.zeros((img.shape[0], img.shape[1]))
         self.comp_index = np.zeros((img.shape[0], img.shape[1]))
+        self.bg = 0
+        self.fg = 1
+        self.pr_bg = 2
+        self.pr_fg = 3
 
     '''
     step 1
@@ -120,7 +124,7 @@ class GrabCut:
     def convert_rect_to_mask(self, rect, img):
         """Convert a rect to a trimap mask."""
         mask = np.zeros((img.shape[0], img.shape[1]))
-        mask[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]] = 2
+        mask[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]] = self.pr_fg
         return mask
 
     def convert_rect_to_matte(self, rect, img):
@@ -131,8 +135,8 @@ class GrabCut:
 
     def set_bgd_fgd(self):
         """Set the background and foreground pixel sets."""
-        self.bgd = np.where(self.trimap == 0)
-        self.fgd = np.where(np.logical_or(self.trimap == 1, self.trimap == 2))
+        self.bgd = np.where(np.logical_or(self.trimap == self.bg, self.trimap == self.pr_bg))
+        self.fgd = np.where(np.logical_or(self.trimap == self.fg, self.trimap == self.pr_fg))
         self.bgd_pixels = self.img[self.bgd]
         self.fgd_pixels = self.img[self.fgd]
 
