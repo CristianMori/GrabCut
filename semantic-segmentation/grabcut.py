@@ -34,6 +34,7 @@ from __future__ import print_function
 import numpy as np
 import cv2
 import sys
+from sklearn import mixture
 
 BLUE = [255, 0, 0]  # rectangle color
 RED = [0, 0, 255]  # PR BG
@@ -54,6 +55,43 @@ rect_over = False  # flag to check if rect drawn
 rect_or_mask = 100  # flag for selecting rect or mask mode
 value = DRAW_FG  # drawing initialized to FG
 thickness = 3  # brush thickness
+
+# precomputed foreground model
+# precomputed background model
+
+
+class GMMImage:
+    def __init__(self, num_components=5, num_channel=3):
+        self.num_components = num_components
+        self.num_channels = num_channel
+        # 5 is the number of components grab cut uses.
+        self.model = mixture.GaussianMixture(n_components=num_components, covariance_type='full')
+
+    def fit(self, data: np.array):
+        assert data[1] == self.num_channels
+        self.model.fit(data)
+
+    def get_params_opencv(self) -> np.array:
+        ret = np.zeros(65)
+        ptr = 0
+
+        data_size = self.num_components
+        assert len(self.model.weights_) == data_size
+        ret[ptr: ptr + self.num_components] = self.model.weights_
+        ptr += data_size
+
+        data_size = self.num_components * self.num_channels
+        assert len(self.model.means_.flatten()) == data_size
+        ret[ptr: ptr + data_size] = self.model.means_.flatten()
+        ptr += data_size
+
+        data_size = self.num_components * self.num_channels * self.num_channels
+        assert len(self.model.covariances_.flatten()) == data_size
+        ret[ptr: ptr + data_size] = self.model.covariances_.flatten()
+        ptr += data_size
+
+        return ret
+
 
 
 def onmouse(event, x, y, flags, param):
@@ -76,7 +114,7 @@ def onmouse(event, x, y, flags, param):
         rect_over = True
         cv2.rectangle(img, (ix, iy), (x, y), BLUE, 2)
         rect = (min(ix, x), min(iy, y), abs(ix - x), abs(iy - y))
-        rect_or_mask = 0
+        rect_or_mask = 3 # Set this to 0 to use without precomputed GMMs
         print(" Now press the key 'n' a few times until no further change \n")
 
     # draw touchup curves
@@ -102,6 +140,13 @@ def onmouse(event, x, y, flags, param):
 
 
 if __name__ == '__main__':
+
+    # Precompute GMMs
+    bgdmodelPC = GMMImage()
+    fgdmodelPC = GMMImage()
+
+    bgdmodelPC.fit(cv2.imread('TrainingSet/Car1.jpg'))
+    fgdmodelPC.fit(cv2.imread('TrainingSet/Car1FG.png'))
 
     # print documentation
     print(__doc__)
@@ -176,6 +221,12 @@ if __name__ == '__main__':
                 bgdmodel = np.zeros((1, 65), np.float64)
                 fgdmodel = np.zeros((1, 65), np.float64)
                 cv2.grabCut(img2, mask, rect, bgdmodel, fgdmodel, 1, cv2.GC_INIT_WITH_MASK)
+            elif rect_or_mask == 3: # grabcut with rect (precomputed GMMs)
+                cv2.grabCut(img2, mask, rect, bgdmodelPC.get_params_opencv(), fgdmodelPC.get_params_opencv(), 1, cv2.GC_INIT_WITH_RECT)
+                rect_or_mask = 4
+            elif rect_or_mask == 4: # grabcut with mask (precomputed GMMs)
+                cv2.grabCut(img2, mask, rect, bgdmodelPC.get_params_opencv(), fgdmodelPC.get_params_opencv(), 1, cv2.GC_INIT_WITH_MASK)
+                
 
         mask2 = np.where((mask == 1) + (mask == 3), 255, 0).astype('uint8')
         output = cv2.bitwise_and(img2, img2, mask=mask2)
