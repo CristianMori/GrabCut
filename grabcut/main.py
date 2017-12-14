@@ -167,13 +167,13 @@ if __name__ == '__main__':
             gc = GrabCut(img2)
             output = np.zeros(img.shape, np.uint8)  # output image to be shown
         elif k == ord('n'):  # segment the image
-            print(""" For finer touchups, mark foreground and background after pressing keys 0-3
-            and again press 'n' \n""")
             if (rect_or_mask == 0):  # grabcut with rect
                 mask = gc.grab_cut(img2, mask, rect, False)
                 rect_or_mask = 1
             elif rect_or_mask == 1:  # grabcut with mask
                 mask = gc.grab_cut(img2, mask, rect, True)
+            print(""" For finer touchups, mark foreground and background after pressing keys 0-3
+            and again press 'n' \n""")
 
         mask2 = np.where((mask == 1) + (mask == 3), 255, 0).astype('uint8')
         output = cv2.bitwise_and(img2, img2, mask=mask2)
