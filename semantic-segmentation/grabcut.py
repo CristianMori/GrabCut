@@ -57,6 +57,8 @@ rect_or_mask = 100  # flag for selecting rect or mask mode
 value = DRAW_FG  # drawing initialized to FG
 thickness = 3  # brush thickness
 
+classImgs = []
+
 # precomputed foreground model
 # precomputed background model
 
@@ -68,13 +70,13 @@ def getCentralMoments(image):
     meanX = sum(x*image)/sum(image)
     meanY = sum(y*image)/sum(image)
 
-    moments['11'] = sum((x - moments['meanX']) * (y-moments['meanY']) * image)
-    moments['02'] = sum((y - moments['meanY']) * * 2 * image)
-    moments['20'] = sum((x - moments['meanX']) * * 2 * image)
-    moments['12'] = sum((x - moments['meanX']) * (y-moments['meanY']) * * 2 * image)
-    moments['21'] = sum((x - moments['meanX']) * * 2 * (y-moments['meanY']) * image) 
-    moments['03'] = sum((y - moments['meanY']) * * 3 * image) 
-    moments['30'] = sum((x - moments['meanX']) * * 3 * image)
+    moments['11'] = sum((x - meanX) * (y-meanY) * image)
+    moments['02'] = sum((y - meanY) ** 2 * image)
+    moments['20'] = sum((x - meanX) ** 2 * image)
+    moments['12'] = sum((x - meanX) * (y-meanY) ** 2 * image)
+    moments['21'] = sum((x - meanX) ** 2 * (y-meanY) * image) 
+    moments['03'] = sum((y - meanY) ** 3 * image) 
+    moments['30'] = sum((x - meanX) ** 3 * image)
 
     return moments
 
@@ -82,23 +84,40 @@ def getHuMoments(n):
     hu = []
 
     hu.append( n['20'] + n['02'] )
-    hu.append( (n['20'] - n['02']) + 4*n['11']**2 )
+    hu.append( (n['20'] - n['02'])**2 + 4*n['11']**2 )
     hu.append( (n['30'] - 3*n['12'])**2 + (3*n['21'] - n['03'])**2 )
     hu.append( (n['30'] + n['12'])**2 + (n['21'] + n['03'])**2 )
     hu.append( (n['30'] - 3*n['12'])*(n['30'] + n['12'])*( (n['30'] + n['12'])**2 - 3*(n['21'] - n['03'])**2 ) + (3*n['21'] - n['03'])*(n['21'] + n['03']) * ( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2) )
     hu.append( (n['20'] - n['02'])*( (n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) + 4*n['11']*(n['30'] + n['12'])*(n['21'] + n['03']) )
-    hu.append( (3*n['21'] - n['03'])*(n['21'] + n['03'])*( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) - (n['30'] - 3*n['12'])
+    hu.append( (3*n['21'] - n['03'])*(n['30'] + n['12'])*( 3*(n['30'] + n['12'])**2 - 3*(n['21'] + n['03'])**2 ) - (n['30'] - 3*n['12'])*(n['21'] + n['03'])*( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) )
+
+    return hu
 
 def getHuDistance(moments1, moments2):
     dist = 0
 
     for i in range(0, 7):
-        left = np.sin(moments1[i])/np.log(moments1[i])
-        right = np.sin(moments2[i])/np.log(moment
-s2[i])
+        left = np.sign(moments1[i])/np.log(moments1[i])
+        right = np.sign(moments2[i])/np.log(moments2[i])
         dist = dist + np.abs(left - right)
 
     return dist
+
+def getSegmentDistance(image, classNum):
+    dist = float('inf')
+
+    segmentMoments = getCentralMoments(image)
+    segmentHuMoments = getHuMoments(segmentMoments)
+
+    for i in range(0, 4):
+        classMoments = getCentralMoments(classImg[classNum][i])
+        classHuMoments = getHuMoments(classMoments)
+        curDist = getHuDistance(segmentHuMoments, classHuMoments)
+
+        if curDist < dist:
+            dist = curDist
+
+    return dist    
 
 
 class GMMImage:
@@ -182,6 +201,22 @@ def onmouse(event, x, y, flags, param):
 
 if __name__ == '__main__':
 
+    # Build training sets
+    cars = []
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car1.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car2.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car3.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car4.png"))
+
+    flowers = []
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower1.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower2.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower3.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower4.png"))
+
+    classImgs.append(cars)
+    classImgs.append(flowers)
+
     # Precompute GMMs
     bgdmodelPC = GMMImage()
     fgdmodelPC = GMMImage()
@@ -201,10 +236,6 @@ if __name__ == '__main__':
         filename = 'lena.jpg'
 
     img = cv2.imread(filename)
-    imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    test = getCentralMoments(imgGray)
-    #getHuDistance(0, 1)
-    print(test)
     img2 = img.copy()  # a copy of original image
     mask = np.zeros(img.shape[:2], dtype=np.uint8)  # mask initialized to PR_BG
     output = np.zeros(img.shape, np.uint8)  # output image to be shown
