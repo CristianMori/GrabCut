@@ -120,6 +120,19 @@ def getSegmentDistance(image, classNum):
     return dist    
 
 
+def getSegmentClass(image):
+    dist = float('inf')
+    classNum = -1
+
+    for i in range(0, len(classImgs)):
+        curDist = getSegmentDistance(image, i)
+
+        if curDist < dist:
+            dist = curDist
+            classNum = i
+
+    return classNum
+
 class GMMImage:
     def __init__(self, num_components=5, num_channel=3):
         self.num_components = num_components
