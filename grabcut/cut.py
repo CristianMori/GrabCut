@@ -63,27 +63,6 @@ class GMM:
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     '''
 
-    # def redistribute_pixels(self):
-    #     """Redistribute the pixels to different clusters."""
-    #     self.update_gmm()
-    #     for i in range(1, self.k):
-    #         n = np.argmax(self.eigenvalues)
-    #         e_n = self.eigenvectors[n]
-    #         rhs = np.dot(e_n.T, self.means[n])
-    #         lhs = np.dot(e_n.T, np.array(self.pixels[n]).T)
-    #         # print("lhs: ", lhs)
-    #         # print("rhs: ", rhs)
-    #         # e_n = np.tile(e_n, (len(self.pixels[n]), 1))
-    #         indices1 = np.where(lhs <= rhs)
-    #         indices2 = np.where(lhs > rhs)
-    #         # print(indices1)
-    #         # print(indices2)
-    #         # print(self.pixels[n])
-    #         temp = np.asarray(self.pixels[n])
-    #         self.pixels[i] = temp[indices1]
-    #         self.pixels[n] = temp[indices2]
-    #         self.update_gmm()
-
     def redistribute_pixels(self):
         """Redistribute the pixels to different clusters."""
         self.update_gmm()
@@ -91,16 +70,39 @@ class GMM:
             n = np.argmax(self.eigenvalues)
             e_n = self.eigenvectors[n]
             rhs = np.dot(e_n.T, self.means[n])
-            c_i = []
-            c_n = []
-            for pixel in self.pixels[n]:
-                lhs = np.dot(e_n.T, pixel)
-                if lhs <= rhs:
-                    c_i.append(pixel)
-                else:
-                    c_n.append(pixel)
-            self.pixels[i] = c_i
-            self.pixels[n] = c_n
+            lhs = np.dot(e_n.T, np.array(self.pixels[n]).T)
+            # print("lhs: ", lhs)
+            # print("rhs: ", rhs)
+            # e_n = np.tile(e_n, (len(self.pixels[n]), 1))
+            indices1 = np.where(lhs <= rhs)
+            indices2 = np.where(lhs > rhs)
+            # print(indices1)
+            # print(indices2)
+            # print(self.pixels[n])
+            temp = np.asarray(self.pixels[n])
+            self.pixels[i] = [p for p in temp[indices1]]
+            self.pixels[n] = [p for p in temp[indices2]]
+            self.update_gmm()
+
+    def redistribute_all_pixels(self):
+        """Redistribute the pixels to different clusters."""
+        self.update_gmm()
+        for i in range(self.k):
+            n = np.argmax(self.eigenvalues)
+            e_n = self.eigenvectors[n]
+            rhs = np.dot(e_n.T, self.means[n])
+            lhs = np.dot(e_n.T, np.array(self.pixels[n]).T)
+            # print("lhs: ", lhs)
+            # print("rhs: ", rhs)
+            # e_n = np.tile(e_n, (len(self.pixels[n]), 1))
+            indices1 = np.where(lhs <= rhs)
+            indices2 = np.where(lhs > rhs)
+            # print(indices1)
+            # print(indices2)
+            # print(self.pixels[n])
+            temp = np.asarray(self.pixels[n])
+            self.pixels[i] = [p for p in temp[indices1]]
+            self.pixels[n] = [p for p in temp[indices2]]
             self.update_gmm()
 
     def calculate_values_from_hardcoded(self):
@@ -112,12 +114,12 @@ class GMM:
                 self.det_cov = np.linalg.det(self.cov[i])
             self.inv_cov[i] = np.linalg.inv(self.cov[i])
 
-     @staticmethod
-     def load_gmm_from_values(weight_vals, mean_vals, covar_vals):
+    @staticmethod
+    def load_gmm_from_values(weight_vals, mean_vals, covar_vals):
         """Load a gmm from some hardcoded values."""
-        assert(len(weight_vals is 5))
-        assert(len(mean_vals is 15))
-        assert(len(covar_vals is 45))
+        assert(len(weight_vals) is 5)
+        assert(len(mean_vals) is 15)
+        assert(len(covar_vals) is 45)
         gmm = GMM()
         for i in range(5):
             gmm.weights[i] = weight_vals[i]
@@ -125,7 +127,6 @@ class GMM:
             gmm.cov[i] = covar_vals[9 * i:9 * i + 9].reshape((3, 3))
         gmm.calculate_values_from_hardcoded()
         return gmm
-
 
 
 class GrabCut:
@@ -142,6 +143,9 @@ class GrabCut:
         self.comp_index = np.zeros((self.height, self.width))
         self.d_fgd = np.zeros((self.height, self.width))
         self.d_bgd = np.zeros((self.height, self.width))
+        self.background_gmm = None
+        self.foreground_gmm = None
+        self.first_iteration_complete = False
         self.bg = 0
         self.fg = 1
         self.pr_bg = 2
@@ -311,20 +315,9 @@ class GrabCut:
             for x in range(self.width):
                 self.trimap[y][x] = mask[y][x]
 
-    '''
-    inputs:
-        img: np.array
-        mask: np.array
-        rect: (start.x, start.y, end.x, end.y)
-        background: np.array
-        foreground: np.array
-        iteration: int
-        use_mask: bool
-    outputs:
-
-    '''
     def grab_cut(self, img, mask, rect, use_mask, bgd_gmm=None, fgd_gmm=None):
         """Perform an iteration of grabcut."""
+        print("Starting grabcut.")
         if not use_mask:
             self.trimap = self.convert_rect_to_mask(rect, img)
             self.matte = self.convert_rect_to_matte(rect, img)
@@ -332,22 +325,27 @@ class GrabCut:
             self.update_trimap_from_mask(mask)
 
         self.set_bgd_fgd()
+
         if bgd_gmm is None:
+            # if not self.first_iteration_complete:
             self.background_gmm = GMM()
 
             for pixel in self.bgd_pixels:
                 self.background_gmm.add_pixel(pixel, 0)
 
+            # if not self.first_iteration_complete:
             self.background_gmm.redistribute_pixels()
+            # else:
+            #     self.background_gmm.redistribute_all_pixels()
         else:
             self.background_gmm = bgd_gmm
 
         if fgd_gmm is None:
+            # if not self.first_iteration_complete:
             self.foreground_gmm = GMM()
 
             for pixel in self.fgd_pixels:
                 self.foreground_gmm.add_pixel(pixel, 0)
-
             self.foreground_gmm.redistribute_pixels()
         else:
             self.foreground_gmm = fgd_gmm
@@ -367,6 +365,8 @@ class GrabCut:
         print("Added weights")
         self.graph.maxflow()
         print("Finished maxflow")
+
+        self.first_iteration_complete = True
 
         sgm = self.graph.get_grid_segments(nodeids).astype(np.uint32)
         sgm = np.bitwise_and(sgm, self.matte.astype(np.uint32))
