@@ -32,6 +32,7 @@ video demo at https://www.youtube.com/watch?v=kAwxLTDDAwU
 from __future__ import print_function
 
 import numpy as np
+from numpy import mgrid, sum
 import cv2
 import sys
 from sklearn import mixture
@@ -58,6 +59,46 @@ thickness = 3  # brush thickness
 
 # precomputed foreground model
 # precomputed background model
+
+def getCentralMoments(image):
+    assert len(image.shape) == 2
+    x, y = mgrid[:image.shape[0],:image.shape[1]]
+
+    moments = {}
+    meanX = sum(x*image)/sum(image)
+    meanY = sum(y*image)/sum(image)
+
+    moments['11'] = sum((x - moments['meanX']) * (y-moments['meanY']) * image)
+    moments['02'] = sum((y - moments['meanY']) * * 2 * image)
+    moments['20'] = sum((x - moments['meanX']) * * 2 * image)
+    moments['12'] = sum((x - moments['meanX']) * (y-moments['meanY']) * * 2 * image)
+    moments['21'] = sum((x - moments['meanX']) * * 2 * (y-moments['meanY']) * image) 
+    moments['03'] = sum((y - moments['meanY']) * * 3 * image) 
+    moments['30'] = sum((x - moments['meanX']) * * 3 * image)
+
+    return moments
+
+def getHuMoments(n):
+    hu = []
+
+    hu.append( n['20'] + n['02'] )
+    hu.append( (n['20'] - n['02']) + 4*n['11']**2 )
+    hu.append( (n['30'] - 3*n['12'])**2 + (3*n['21'] - n['03'])**2 )
+    hu.append( (n['30'] + n['12'])**2 + (n['21'] + n['03'])**2 )
+    hu.append( (n['30'] - 3*n['12'])*(n['30'] + n['12'])*( (n['30'] + n['12'])**2 - 3*(n['21'] - n['03'])**2 ) + (3*n['21'] - n['03'])*(n['21'] + n['03']) * ( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2) )
+    hu.append( (n['20'] - n['02'])*( (n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) + 4*n['11']*(n['30'] + n['12'])*(n['21'] + n['03']) )
+    hu.append( (3*n['21'] - n['03'])*(n['21'] + n['03'])*( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) - (n['30'] - 3*n['12'])
+
+def getHuDistance(moments1, moments2):
+    dist = 0
+
+    for i in range(0, 7):
+        left = np.sin(moments1[i])/np.log(moments1[i])
+        right = np.sin(moments2[i])/np.log(moment
+s2[i])
+        dist = dist + np.abs(left - right)
+
+    return dist
 
 
 class GMMImage:
@@ -145,8 +186,8 @@ if __name__ == '__main__':
     bgdmodelPC = GMMImage()
     fgdmodelPC = GMMImage()
 
-    bgdmodelPC.fit(cv2.imread('TrainingSet/Car1.jpg'))
-    fgdmodelPC.fit(cv2.imread('TrainingSet/Car1FG.png'))
+    #bgdmodelPC.fit(cv2.imread('TrainingSet/Car1.jpg'))
+    #fgdmodelPC.fit(cv2.imread('TrainingSet/Car1FG.png'))
 
     # print documentation
     print(__doc__)
@@ -160,6 +201,10 @@ if __name__ == '__main__':
         filename = 'lena.jpg'
 
     img = cv2.imread(filename)
+    imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    test = getCentralMoments(imgGray)
+    #getHuDistance(0, 1)
+    print(test)
     img2 = img.copy()  # a copy of original image
     mask = np.zeros(img.shape[:2], dtype=np.uint8)  # mask initialized to PR_BG
     output = np.zeros(img.shape, np.uint8)  # output image to be shown
