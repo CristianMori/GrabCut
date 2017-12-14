@@ -97,8 +97,8 @@ def getHuDistance(moments1, moments2):
     dist = 0
 
     for i in range(0, 7):
-        left = np.sign(moments1[i])/np.log(moments1[i])
-        right = np.sign(moments2[i])/np.log(moments2[i])
+        left = np.sign(moments1[i])/np.log(np.abs(moments1[i]))
+        right = np.sign(moments2[i])/np.log(np.abs(moments2[i]))
         dist = dist + np.abs(left - right)
 
     return dist
@@ -254,6 +254,8 @@ if __name__ == '__main__':
 
     moment1 = getCentralMoments(imgGray1)
     moment2 = getCentralMoments(imgGray2)
+
+    print(moment2)
 
     huMoment1 = getHuMoments(moment1)
     huMoment2 = getHuMoments(moment2)
