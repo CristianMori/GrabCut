@@ -1,5 +1,6 @@
 from sklearn import mixture
 import numpy as np
+from typing import List
 
 
 class GMMImage:
@@ -10,26 +11,33 @@ class GMMImage:
         self.model = mixture.GaussianMixture(n_components=num_components, covariance_type='full')
 
     def fit(self, data: np.array):
-        assert data[1] == self.num_channels
+        assert data.shape[1] == self.num_channels
         self.model.fit(data)
 
-    def get_params_opencv(self) -> np.array:
-        ret = np.zeros(65)
+    def predict(self, image: np.ndarray):
+        height, width, num_channel = image.shape
+        assert num_channel == 3  # only BGR, no alpha
+        probs = self.model.predict(image.reshape(-1, 3))  # type: np.ndarray
+        return probs.reshape((height, width))
+
+    @property
+    def get_params_opencv(self):
+        ret = np.zeros((1, 65), dtype=np.float64)
         ptr = 0
 
         data_size = self.num_components
         assert len(self.model.weights_) == data_size
-        ret[ptr: ptr + self.num_components] = self.model.weights_
+        ret[0, ptr: ptr + self.num_components] = self.model.weights_
         ptr += data_size
 
         data_size = self.num_components * self.num_channels
         assert len(self.model.means_.flatten()) == data_size
-        ret[ptr: ptr + data_size] = self.model.means_.flatten()
+        ret[0, ptr: ptr + data_size] = self.model.means_.flatten()
         ptr += data_size
 
         data_size = self.num_components * self.num_channels * self.num_channels
         assert len(self.model.covariances_.flatten()) == data_size
-        ret[ptr: ptr + data_size] = self.model.covariances_.flatten()
+        ret[0, ptr: ptr + data_size] = self.model.covariances_.flatten()
         ptr += data_size
-
         return ret
+        # return self.model.weights_, self.model.means_.flatten(), self.model.covariances_.flatten()

@@ -112,12 +112,12 @@ class GMM:
                 self.det_cov = np.linalg.det(self.cov[i])
             self.inv_cov[i] = np.linalg.inv(self.cov[i])
 
-     @staticmethod
-     def load_gmm_from_values(weight_vals, mean_vals, covar_vals):
+    @staticmethod
+    def load_gmm_from_values(weight_vals, mean_vals, covar_vals):
         """Load a gmm from some hardcoded values."""
-        assert(len(weight_vals is 5))
-        assert(len(mean_vals is 15))
-        assert(len(covar_vals is 45))
+        # assert(len(weight_vals is 5))
+        # assert(len(mean_vals is 15))
+        # assert(len(covar_vals is 45))
         gmm = GMM()
         for i in range(5):
             gmm.weights[i] = weight_vals[i]
@@ -125,7 +125,6 @@ class GMM:
             gmm.cov[i] = covar_vals[9 * i:9 * i + 9].reshape((3, 3))
         gmm.calculate_values_from_hardcoded()
         return gmm
-
 
 
 class GrabCut:
