@@ -249,6 +249,19 @@ if __name__ == '__main__':
         filename = 'lena.jpg'
 
     img = cv2.imread(filename)
+    imgGray1 = cv2.cvtColor(classImgs[0][0], cv2.COLOR_BGR2GRAY)
+    imgGray2 = cv2.cvtColor(classImgs[0][1], cv2.COLOR_BGR2GRAY)
+
+    moment1 = getCentralMoments(imgGray1)
+    moment2 = getCentralMoments(imgGray2)
+
+    huMoment1 = getHuMoments(moment1)
+    huMoment2 = getHuMoments(moment2)
+ 
+    print(getHuDistance(huMoment1, huMoment2))
+
+    print
+
     img2 = img.copy()  # a copy of original image
     mask = np.zeros(img.shape[:2], dtype=np.uint8)  # mask initialized to PR_BG
     output = np.zeros(img.shape, np.uint8)  # output image to be shown
