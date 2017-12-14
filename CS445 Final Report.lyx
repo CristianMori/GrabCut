@@ -1,0 +1,357 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 2cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+GrabCut and Semantic Segmentation
+\end_layout
+
+\begin_layout Author
+Tejas Sharma, Jiajun Xu, Youxin Chen, Jacob Irle
+\end_layout
+
+\begin_layout Section*
+Introduction
+\end_layout
+
+\begin_layout Standard
+The goal of our project was to implement Grabcut, which is a foreground
+ extraction algorithm, and then to further utilize this tool in Semantic
+ Segmentation, which [does things, pls insert]
+\end_layout
+
+\begin_layout Section
+GrabCut
+\end_layout
+
+\begin_layout Subsection
+Outside Resources
+\end_layout
+
+\begin_layout Itemize
+Our grabcut implementation is based on the paper “ ‘GrabCut’ -- Interactive
+ Foreground Extraction using Iterated Graph Cuts” by Carsten Rother, Vladimir
+ Kolmogorov, and Andrew Blake.
+\end_layout
+
+\begin_layout Itemize
+GrabCut is based upon the paper “Graph Cut”, by Yuri Boykov and Marie-Pierre
+ Jolly.
+\end_layout
+
+\begin_layout Itemize
+The paper “Implementing GrabCut” by Justin Talbot and Xiaoqian Xu was also
+ crucial in our implementation, as it explained the method in a much simpler
+ manner, which increased our understanding significantly.
+\end_layout
+
+\begin_layout Itemize
+We also used the “PyMaxFlow” library, which is a library for solving min-cut/max
+-flow in python.
+ This library is based on the method described in “An Experimental Comparison
+ of Min-Cut/Max-Flow Algorithms for Energy Minimization in Vision” by Yuri
+ Boykov and Vladimir Kolmogorov.
+ We initially created our own implementation based on the same paper, but
+ found that it was too slow to be practically used due to being written
+ in pure python.
+ PyMaxFlow creates a wrapper for the C++ version, which makes it a lot faster.
+\end_layout
+
+\begin_layout Itemize
+Our UI is heavily based upon the Python example available in the OpenCV
+ github repo.
+ 
+\end_layout
+
+\begin_layout Subsection
+Implementation Details
+\end_layout
+
+\begin_layout Standard
+GrabCut is based upon the Graph Cut algorithm, which is also used for image
+ segmentation.
+ The key difference between the two is that Graph Cut could only be used
+ in black and white images, and required a lot more user interaction.
+\end_layout
+
+\begin_layout Standard
+It uses iterative learning, which greatly reduces the amount of user interaction
+, but still allows the user to hardcode foreground and background pixels.
+ At a high level, GrabCut attempts to minimize the energy between pixels
+ in an image in order to find an optimal bounding cut.
+ It iteratively improves this cut by recalculating the energy based on its
+ previous classification until convergence.
+\end_layout
+
+\begin_layout Subsubsection
+Gaussian Mixture Models
+\end_layout
+
+\begin_layout Standard
+GrabCut represents the foreground and the background of an image with 2
+ Gaussian Mixture Models, each of which has K gaussian components.
+ Every pixel of the image belongs to one of the foreground or background
+ component.
+ Each gaussian component stores the mean 
+\begin_inset Formula $(\mu)$
+\end_inset
+
+, the covariance matrix 
+\begin_inset Formula $(\Sigma)$
+\end_inset
+
+ and a weight 
+\begin_inset Formula $(\pi)$
+\end_inset
+
+.
+ We use these gaussian components to calculate the likelihood that the pixel
+ belongs to either the foreground or the background 
+\end_layout
+
+\begin_layout Standard
+We calculate the likelihood a pixel belongs to a GMM using equation 2 from
+ “Implementing GrabCut
+\begin_inset Quotes erd
+\end_inset
+
+, which gives us a likelihood as the function of a pixel 
+\begin_inset Formula $m$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+D(m)=-\log\sum_{i=1}^{K}\left[\pi(\alpha_{m},i)\frac{1}{\sqrt{\textrm{det}\Sigma(\alpha_{m},i)}}\times\exp\left(\frac{1}{2}\left[z_{m}-\mu(\alpha_{m},i)\right]^{T}\Sigma(\alpha_{m},i)^{-1}\left[z_{m}-\mu(\alpha_{m},i)\right]\right)\right]
+\]
+
+\end_inset
+
+where 
+\begin_inset Formula $z_{m}$
+\end_inset
+
+is the colour of the pixel, and 
+\begin_inset Formula $(\alpha_{m},i)$
+\end_inset
+
+ essentially allows us to uniquely identify the cluster covariance and mean
+ that we are trying to access.
+\end_layout
+
+\begin_layout Subsubsection
+Pixel Classifications
+\end_layout
+
+\begin_layout Standard
+When creating the GMMs, we use the initial user input, which is a simple
+ rectangle that is drawn around the foreground object, to create a set of
+ classifications for the pixels.
+ In “Implementing GrabCut”, they use a trimap of Foreground, Background
+ and Unknown.
+ However, when looking at the example code for our UI, we noticed that it
+ uses four values: Background, Foreground, Potential Background, and Potential
+ Foreground.
+ We decided this made more sense to us, and would make implementation easier,
+ so we also used this method.
+ In the initial step, everything outside the rectangle is classified as
+ Background, and everything inside it is classified as Potential Foreground.
+ To note the difference in this report between the classification Foreground
+ and the regular word foreground, we will be capitalising the classifications.
+\end_layout
+
+\begin_layout Subsubsection
+Graph Cut
+\end_layout
+
+\begin_layout Standard
+To create the graph used in Graph Cut, we represent each pixel as a node
+ in the graph.
+ Each pixel is connected to its 8 adjacent pixels in the image (unless it
+ is on one or more of the borders).
+ We also add two terminal nodes for performing the max flow segmentation,
+ one representing the source (background), and one representing the sink
+ (foreground).
+ The terminal nodes are connected to every pixel.
+\end_layout
+
+\begin_layout Standard
+There are two types of edges in the graph: T-links, which are between a
+ pixel and the two terminal nodes; and N-links, which are between a pixel
+ and its 8 neighbours.
+\end_layout
+
+\begin_layout Standard
+We build the N-links as follows:
+\end_layout
+
+\begin_layout Itemize
+Each pixel is connected to its neighbours with the weight function 
+\begin_inset Formula 
+\[
+N(m,n)=\frac{1}{dist(m,n)}e^{-\beta\Vert z_{m}-z_{n}\Vert^{2}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+\begin_inset Formula $\beta=\left(2\left\langle \left(z_{m}-z_{n}\right)^{2}\right\rangle \right)^{-1}$
+\end_inset
+
+, where 
+\begin_inset Formula $\langle\rangle$
+\end_inset
+
+ represents an expectation over an image sample.
+\end_layout
+
+\begin_layout Itemize
+The 
+\begin_inset Formula $dist$
+\end_inset
+
+ factor simply denotes whether the pixels are diagonal neighbours or immediate
+ neighbours as noted in 
+\begin_inset Quotes eld
+\end_inset
+
+Implementing GrabCut
+\begin_inset Quotes erd
+\end_inset
+
+, since the method in the original GrabCut paper favoured diagonal edges.
+\end_layout
+
+\begin_layout Standard
+We build the T-links between the terminal nodes and the pixels by doing
+ the following:
+\end_layout
+
+\begin_layout Itemize
+First, we store the maximum weight created in the N-links.
+ This will be used when a pixel has been clasified as Foreground or Background.
+\end_layout
+
+\begin_layout Itemize
+If a pixel is classified as Foreground, we assign its foreground T-link
+ to be the maximum weight, and its background T-link to be 0
+\end_layout
+
+\begin_layout Itemize
+If a pixel is classified as Background, we assign its foreground T-link
+ to be 0, and its background T-link to be the maximum weight
+\end_layout
+
+\begin_layout Itemize
+If a pixel is classified as Potential Background or Potentail Foreground,
+ we use the 
+\begin_inset Formula $D(m)$
+\end_inset
+
+ function referenced earlier and assign its foreground T-link to be 
+\begin_inset Formula $D_{bgd}(m)$
+\end_inset
+
+ and its background T-link to be 
+\begin_inset Formula $D_{fgd}(m)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+After building the links, we run a max cut algorithm on it, and use the
+ results to tell us which parts are foreground and background.
+ Pixels that have been marked as Foreground or Background by the user are
+ unchanged, and pixels that are not are updated to Potential Foreground
+ and Potential Background based on the cut.
+ These values are then fed back into the GMMs to iteratively run until convergen
+ce.
+\end_layout
+
+\begin_layout Subsection
+GrabCut Results
+\end_layout
+
+\begin_layout Standard
+The following are the results of running our GrabCut implementation 
+\end_layout
+
+\end_body
+\end_document
