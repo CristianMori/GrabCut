@@ -117,6 +117,7 @@ class GMM:
     @staticmethod
     def load_gmm_from_values(weight_vals, mean_vals, covar_vals):
         """Load a gmm from some hardcoded values."""
+
         assert(len(weight_vals) is 5)
         assert(len(mean_vals) is 15)
         assert(len(covar_vals) is 45)
