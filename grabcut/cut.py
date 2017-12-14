@@ -371,4 +371,5 @@ class GrabCut:
         sgm = self.graph.get_grid_segments(nodeids).astype(np.uint32)
         sgm = np.bitwise_and(sgm, self.matte.astype(np.uint32))
         self.update_trimap_from_segmentation(sgm)
+        mask = self.trimap.copy()
         return self.trimap
