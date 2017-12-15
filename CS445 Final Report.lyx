@@ -90,11 +90,17 @@ Introduction
 \begin_layout Standard
 The goal of our project was to implement Grabcut, which is a foreground
  extraction algorithm, and then to further utilize this tool in Semantic
- Segmentation, which [does things, pls insert]
+ Segmentation, which, when trained with a set of pre-labeled images, can
+ complete GrabCut without any human interaction at all for that class of
+ objects.
 \end_layout
 
 \begin_layout Section
 GrabCut
+\end_layout
+
+\begin_layout Standard
+This part of the project was completed by Tejas Sharma and Jiajun Xu
 \end_layout
 
 \begin_layout Subsection
@@ -364,7 +370,7 @@ The first is an image of a llama, which we decided worked pretty well without
 placement H
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \begin_inset Tabular
@@ -453,6 +459,13 @@ Llama Segmentation
 \end_layout
 
 \begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 The next is an image of Lena Söderberg, which allowed us to show off the
  ability for users to mark certain areas as Foreground or Background that
  were incorrectly classified by GrabCut.
@@ -497,7 +510,7 @@ Initial GrabCut Output
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename C:/Users/tejas/Downloads/25394090_842509615910821_923845087_n.png
+	filename C:/Users/tejas/Pictures/lena_rectangle.PNG
 	scale 50
 
 \end_inset
@@ -512,7 +525,7 @@ Initial GrabCut Output
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename C:/Users/tejas/Downloads/25360839_842509612577488_1812808336_n.png
+	filename C:/Users/tejas/Pictures/lena_rectangle_result.PNG
 	scale 50
 
 \end_inset
@@ -562,7 +575,7 @@ Final GrabCut Output
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename C:/Users/tejas/Downloads/25394090_842509615910821_923845087_n.png
+	filename C:/Users/tejas/Pictures/lena_touchup.PNG
 	scale 50
 
 \end_inset
@@ -577,7 +590,7 @@ Final GrabCut Output
 
 \begin_layout Plain Layout
 \begin_inset Graphics
-	filename C:/Users/tejas/Downloads/25360839_842509612577488_1812808336_n.png
+	filename C:/Users/tejas/Pictures/lena_touchup_result.PNG
 	scale 50
 
 \end_inset
@@ -610,6 +623,327 @@ Lena Segmentation
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Finally, we have an image of a soldier.
+ We were expecting this image to be really hard due to the similarity of
+ colours between the foreground and background.
+ Indeed, the initial result was not great.
+ However, even with such similar colours, after some user input we had a
+ pretty good result.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+placement H
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Original Image
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Initial GrabCut Output
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/soldier_rectangle.PNG
+	scale 50
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/soldier_rectangle_result.PNG
+	scale 50
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+User Touchup
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Final GrabCut Output
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/soldier_touchup.PNG
+	scale 50
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/soldier_touchup_result.PNG
+	scale 50
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Lena Segmentation
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Semantic Segmentation
+\end_layout
+
+\begin_layout Standard
+This part of the project was completed by Youxin Chen and Jacob Irle
+\end_layout
+
+\begin_layout Subsection
+Outside Resources
+\end_layout
+
+\begin_layout Itemize
+Our Semantic Segmentation is based on 
+\begin_inset Quotes eld
+\end_inset
+
+Semantic Segmentation using GrabCut
+\begin_inset Quotes erd
+\end_inset
+
+ by Christopher Göring, Björn Fröhlich, and Joachim Denzler.
+\end_layout
+
+\begin_layout Itemize
+The metric we use to decide the similarity between two patches is Hu Moments,
+ based on the paper 
+\begin_inset Quotes eld
+\end_inset
+
+Visual Pattern Recognition by Moment Invariants
+\begin_inset Quotes erd
+\end_inset
+
+ by Ming-Kuei Hu.
+\end_layout
+
+\begin_layout Subsection
+Implementation Details
+\end_layout
+
+\begin_layout Standard
+Semantic Segmentation uses GrabCut in order to complete GrabCut without
+ any user interaction.
+ It does this by essentially training a pair of Gaussian Mixture Models
+ with a set of sample images of a particular class of object (e.g.
+ cars, flowers), and then using those models in the GrabCut algorithm to
+ get the foreground.
+\end_layout
+
+\begin_layout Subsubsection
+Training the GMMs
+\end_layout
+
+\begin_layout Standard
+The assumption that we make while implementing Semantic Segmentation is
+ that all objects of a particulat class can be modeled using Gaussian Mixture
+ Models.
+ So, in order to bootstrap the algorithm, we manually label the background
+ and foreground of some images of certain classes.
+ A simplified training set can be seen below.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/training_set.PNG
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Simplified Training Set
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We use photoshop to generate the corresponding foreground and background
+ images.
+ Those pixtures are saved as png files, with the irrelevant section having
+ zero opacity.
+\end_layout
+
+\begin_layout Standard
+We then load all the pictures, and only use pixels with an opacity value
+ greater than 200.
+\end_layout
+
+\begin_layout Standard
+After doing this, we feed all foreground pixels of a class to one GMM, and
+ the background pixels to another GMM.
+ After creating the GMMs, we finetune the number of components down to 5.
+ We first train a series of GMMs with a number of different components,
+ and run those GMMs on a validation of the same class.
+\end_layout
+
+\begin_layout Subsubsection
+Creating a Segmentation
+\end_layout
+
+\begin_layout Standard
+With the GMMs trained, we feed our test images to them, and label them as
+ either foreground or background based on the following formula
+\begin_inset Formula 
+\[
+\alpha_{i}^{*}=\underbrace{argmax}_{\alpha_{i}\in\left\{ \textrm{fgd,bgd}\right\} }p\left(z_{i}\vert\alpha_{i},k_{i},\theta\right),\forall i\in\left\{ 1,\ldots,N\right\} 
+\]
+
+\end_inset
+
+Where 
+\begin_inset Formula $N$
+\end_inset
+
+ is the number of pixels, 
+\begin_inset Formula $z_{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+After the GMM is trained, we use those two models of each class to run an
+ initial segmentation and then use this initial segmentation to bootstrap
+ the GrabCut algorithm.
 \end_layout
 
 \end_body
