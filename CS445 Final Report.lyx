@@ -93,6 +93,8 @@ The goal of our project was to implement Grabcut, which is a foreground
  Segmentation, which, when trained with a set of pre-labeled images, can
  complete GrabCut without any human interaction at all for that class of
  objects.
+ Our motivation for this project was to be able to quickly detect foreground
+ in images with minimal user interaction.
 \end_layout
 
 \begin_layout Section
@@ -937,13 +939,278 @@ Where
 \begin_inset Formula $z_{i}$
 \end_inset
 
+ is the i-th pixel, and 
+\begin_inset Formula $\theta$
+\end_inset
+
+represents the GMMS we trained for each class.
+\end_layout
+
+\begin_layout Standard
+With this, we get an initial segmentation, which together with the GMMs
+ and GrabCut, can be used to optimize the segmentation that will later be
+ used for classification.
+\end_layout
+
+\begin_layout Subsubsection
+Classification
+\end_layout
+
+\begin_layout Standard
+After GrabCut returns the optimized segmentation, we find the class which
+ has the minimum distance to the segment.
+ This is implemented by taking the distance between the Hu-moments of the
+ segment and a given training set of images.
+ The function shown below describes how we calculate the distance of a segment
+ to a given class.
+\begin_inset Formula 
+\[
+dist_{h}(\alpha_{c},Z_{c})=\underset{i=1\ldots N_{c}}{min}M(h(\alpha_{c}),h(\alpha^{i,c}))
+\]
+
+\end_inset
+
 
 \end_layout
 
 \begin_layout Standard
-After the GMM is trained, we use those two models of each class to run an
- initial segmentation and then use this initial segmentation to bootstrap
- the GrabCut algorithm.
+In order for this function to make sense, we must have the Hu moments of
+ the training images and the segment.
+ We can obtain the Hu moments of an image by first finding the central moments
+ of an image.
+ The central moments of an image are defined below, where 
+\begin_inset Formula $M_{xx}$
+\end_inset
+
+ describes an already calculated moment
+\begin_inset Formula 
+\begin{align*}
+\mu_{00} & =M_{00}\\
+\mu_{01} & =0\\
+\mu_{10} & =0\\
+\mu_{11} & =M_{11}-\overline{x}M_{01}=M_{11}-\overline{y}M_{10}\\
+\mu_{20} & =M_{20}-\overline{x}M_{10}\\
+\mu_{02} & =M_{02}-\overline{x}M_{01}\\
+\mu_{21} & =M_{21}-2\overline{x}M_{11}-\overline{y}M_{20}+2\overline{x}^{2}M_{01}\\
+\mu_{12} & =M_{12}-2\overline{y}M_{11}-\overline{x}M_{02}+2\overline{y}^{2}M_{10}\\
+\mu_{30} & =M_{30}-3\overline{x}M_{20}+2\overline{x}^{2}M_{10}\\
+\mu_{03} & =M_{03}-3\overline{7}M_{02}+2\overline{y}^{2}M_{01}
+\end{align*}
+
+\end_inset
+
+After the central moments are found, we can use them to calculate the Hu
+ moments which are used in our distance calculation.
+ There are 7 invariant Hu moments which we will use in order to calculate
+ the distance.
+\begin_inset Formula 
+\begin{align*}
+I_{1} & =\eta_{20}+\eta_{02}\\
+I_{2} & =(\eta_{20}-\eta_{02})^{^{2}}+4\eta_{11}^{2}\\
+I_{3} & =(\eta_{30}-3\eta_{12})^{^{2}}+(3\eta_{21}-\eta_{03})^{^{2}}\\
+I_{4} & =(\eta_{30}+\eta_{12})^{^{2}}+(\eta_{21}+\eta_{03})^{^{2}}\\
+I_{5} & =(\eta_{30}-3\eta_{12})(\eta_{30}+\eta_{12})\left[(\eta_{30}+\eta_{12})^{^{2}}-3(\eta_{21}-\eta_{03})^{^{2}}\right]+(3\eta_{21}-\eta_{03})(\eta_{21}+\eta_{03})\left[3(\eta_{30}+\eta_{12})^{^{2}}-(\eta_{21}+\eta_{03})^{^{2}}\right]\\
+I_{6} & =(\eta_{20}-\eta_{02})\left[(\eta_{30}+\eta_{12})^{^{2}}-3(\eta_{21}+\eta_{03})^{^{2}}\right]+4\eta_{11}(\eta_{30}+\eta_{12})(\eta_{21}+\eta_{03})\\
+I_{7} & =(3\eta_{21}-\eta_{03})(\eta_{30}+\eta_{12})\left[(\eta_{30}+\eta_{12})^{^{2}}-3(\eta_{21}-\eta_{03})^{^{2}}\right]-(\eta_{30}-3\eta_{12})(\eta_{21}+\eta_{03})\left[3(\eta_{30}+\eta_{12})^{^{2}}-(\eta_{21}+\eta_{03})^{^{2}}\right]
+\end{align*}
+
+\end_inset
+
+After these are obtained we can then calculate the distance between two
+ sets of hu moments as such:
+\begin_inset Formula 
+\[
+M(H,H')=\sum_{i=1,\ldots,7}\left|\frac{\textrm{sign}(H_{i})}{\log|H_{i}|}-\frac{\textrm{sign}(H'_{i})}{\log|H'_{i}|}\right|
+\]
+
+\end_inset
+
+Now that we have a way to calculate the distance between two sets of hu
+ moments, we cans ee that the distance between a segment and a given class
+ is described as the hu moment distance between the segment and a given
+ class, which allows us to determine which class the segment belongs to
+ by finding the class that gives us a minimum distance from the segment.
+\end_layout
+
+\begin_layout Subsection
+Results
+\end_layout
+
+\begin_layout Subsubsection
+Creating a segmentation
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/semanticsegmentation_car.PNG
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Semantic Segmentation on Car (Initial Image / After Initial Segmentation
+ / After GrabCut Optimization
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/semanticsegmentation_flower.PNG
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Semantic Segmentation on Flower (Initial Image / After Initial Segmentation
+ / After GrabCut Optimization
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Classification
+\end_layout
+
+\begin_layout Standard
+For the below image, the results were:
+\end_layout
+
+\begin_layout Itemize
+Distance to Car class: 0.0256119028253
+\end_layout
+
+\begin_layout Itemize
+Distance to Flower class: 0.0311897888659 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/car_class.PNG
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Car Classification
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For the below image, the results were:
+\end_layout
+
+\begin_layout Itemize
+Distance to Car class: 0.00651206406006
+\end_layout
+
+\begin_layout Itemize
+Distance to Flower class: 0.00531785182462 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename C:/Users/tejas/Pictures/flower_class.PNG
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Flower Classification
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As you can see, the classifying functionality of C-Grabcut works as intended,
+ although the difference between the two distances is not as extreme as
+ we initially thought it would be.
+ This could be a result of our training set being fairly small for each
+ class (4 images), which was due to the fact that we needed to manually
+ construct the background and foreground images for each class.
+ If we were able to automate that process, we may have been able to build
+ stronger training sets that would yield more explicit results.
 \end_layout
 
 \end_body
