@@ -3,12 +3,6 @@ import cv2
 
 classImgs = []
 
-def filter_and_flatten(image: np.ndarray, thresh_hold=200):
-    assert image.shape[2] == 4  # assert it has alpha channel
-    ret = np.reshape(image, (-1, 4))
-    ret = np.array([visible[:3] for visible in ret if visible[3] > thresh_hold])
-    return ret
-
 def getCentralMoments(image):
     assert len(image.shape) == 2
     x, y = np.mgrid[:image.shape[0],:image.shape[1]]
@@ -68,54 +62,62 @@ def getSegmentDistance(image, classNum):
 
 
 def getSegmentClass(image):
-    dist = float('inf')
     classNum = -1
+    distances = []
 
     for i in range(0, len(classImgs)):
         curDist = getSegmentDistance(image, i)
+        distances.append(curDist)
 
-        if curDist < dist:
-            dist = curDist
-            classNum = i
+    print("Distance to Car class: ", distances[0])
+    print("Distance to Flower class: ", distances[1])
 
-    return classNum
+    return distances.index(min(distances))
 
 if __name__ == '__main__':
 
     # Build training sets
     cars = []
-    cars.append(cv2.imread("Training Set/Foreground/Car/Car1.png"))
-    cars.append(cv2.imread("Training Set/Foreground/Car/Car2.png"))
-    cars.append(cv2.imread("Training Set/Foreground/Car/Car3.png"))
-    cars.append(cv2.imread("Training Set/Foreground/Car/Car4.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car1.png",  flags=cv2.IMREAD_UNCHANGED))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car2.png",  flags=cv2.IMREAD_UNCHANGED))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car3.png",  flags=cv2.IMREAD_UNCHANGED))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car4.png",  flags=cv2.IMREAD_UNCHANGED))
 
     flowers = []
-    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower1.png"))
-    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower2.png"))
-    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower3.png"))
-    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower4.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower1.png",  flags=cv2.IMREAD_UNCHANGED))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower2.png",  flags=cv2.IMREAD_UNCHANGED))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower3.png",  flags=cv2.IMREAD_UNCHANGED))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower4.png",  flags=cv2.IMREAD_UNCHANGED))
 
     classImgs.append(cars)
     classImgs.append(flowers)
 
-    testCar = cv2.imread("../test_foreground.png")
+    testCar = cv2.imread("./Test Images/flower1.png", flags=cv2.IMREAD_UNCHANGED)
+
+    for i in range(0, len(classImgs)):
+        for j in range(0, len(classImgs[i])):
+            for k in range(0, len(classImgs[i][j])):
+                for l in range(0, len(classImgs[i][j][k])):                
+                    if classImgs[i][j][k][l][3] <= 20:
+                        classImgs[i][j][k][l][0] = 0
+                        classImgs[i][j][k][l][1] = 0
+                        classImgs[i][j][k][l][2] = 0
+
+    for i in range(0, len(testCar)):
+        for j in range(0, len(testCar[i])):
+            if testCar[i][j][3] <= 20:
+                testCar[i][j][0] = 0
+                testCar[i][j][1] = 0
+                testCar[i][j][2] = 0
+
     testCarGray = cv2.cvtColor(testCar, cv2.COLOR_BGR2GRAY)
 
     for i in range(0, len(classImgs)):
         for j in range(0, len(classImgs[i])):
             classImgs[i][j] = cv2.cvtColor(classImgs[i][j], cv2.COLOR_BGR2GRAY)
 
-    imgGray1 = classImgs[0][0]
-    imgGray2 = classImgs[0][1]
 
-    moment1 = getCentralMoments(imgGray1)
-    moment2 = getCentralMoments(imgGray2)
+    cv2.imshow("test", testCarGray)
+    cv2.waitKey(0)
 
-    print(moment2)
-
-    huMoment1 = getHuMoments(moment1)
-    huMoment2 = getHuMoments(moment2)
- 
-    print(getHuDistance(huMoment1, huMoment2))
-
-    print(getSegmentClass(filter_and_flatten(testCarGray)))
+    print(getSegmentClass(testCarGray))
