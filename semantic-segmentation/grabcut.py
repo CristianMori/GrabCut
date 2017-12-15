@@ -30,9 +30,7 @@ video demo at https://www.youtube.com/watch?v=kAwxLTDDAwU
 
 # Python 2/3 compatibility
 from __future__ import print_function
-
 import numpy as np
-from numpy import mgrid, sum
 import cv2
 import sys
 from sklearn import mixture
@@ -61,111 +59,6 @@ classImgs = []
 
 # precomputed foreground model
 # precomputed background model
-
-def getCentralMoments(image):
-    assert len(image.shape) == 2
-    x, y = mgrid[:image.shape[0],:image.shape[1]]
-
-    moments = {}
-    meanX = sum(x*image)/sum(image)
-    meanY = sum(y*image)/sum(image)
-
-    moments['11'] = sum((x - meanX) * (y-meanY) * image)
-    moments['02'] = sum((y - meanY) ** 2 * image)
-    moments['20'] = sum((x - meanX) ** 2 * image)
-    moments['12'] = sum((x - meanX) * (y-meanY) ** 2 * image)
-    moments['21'] = sum((x - meanX) ** 2 * (y-meanY) * image) 
-    moments['03'] = sum((y - meanY) ** 3 * image) 
-    moments['30'] = sum((x - meanX) ** 3 * image)
-
-    return moments
-
-def getHuMoments(n):
-    hu = []
-
-    hu.append( n['20'] + n['02'] )
-    hu.append( (n['20'] - n['02'])**2 + 4*n['11']**2 )
-    hu.append( (n['30'] - 3*n['12'])**2 + (3*n['21'] - n['03'])**2 )
-    hu.append( (n['30'] + n['12'])**2 + (n['21'] + n['03'])**2 )
-    hu.append( (n['30'] - 3*n['12'])*(n['30'] + n['12'])*( (n['30'] + n['12'])**2 - 3*(n['21'] - n['03'])**2 ) + (3*n['21'] - n['03'])*(n['21'] + n['03']) * ( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2) )
-    hu.append( (n['20'] - n['02'])*( (n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) + 4*n['11']*(n['30'] + n['12'])*(n['21'] + n['03']) )
-    hu.append( (3*n['21'] - n['03'])*(n['30'] + n['12'])*( 3*(n['30'] + n['12'])**2 - 3*(n['21'] + n['03'])**2 ) - (n['30'] - 3*n['12'])*(n['21'] + n['03'])*( 3*(n['30'] + n['12'])**2 - (n['21'] + n['03'])**2 ) )
-
-    return hu
-
-def getHuDistance(moments1, moments2):
-    dist = 0
-
-    for i in range(0, 7):
-        left = np.sign(moments1[i])/np.log(np.abs(moments1[i]))
-        right = np.sign(moments2[i])/np.log(np.abs(moments2[i]))
-        dist = dist + np.abs(left - right)
-
-    return dist
-
-def getSegmentDistance(image, classNum):
-    dist = float('inf')
-
-    segmentMoments = getCentralMoments(image)
-    segmentHuMoments = getHuMoments(segmentMoments)
-
-    for i in range(0, 4):
-        classMoments = getCentralMoments(classImg[classNum][i])
-        classHuMoments = getHuMoments(classMoments)
-        curDist = getHuDistance(segmentHuMoments, classHuMoments)
-
-        if curDist < dist:
-            dist = curDist
-
-    return dist    
-
-
-def getSegmentClass(image):
-    dist = float('inf')
-    classNum = -1
-
-    for i in range(0, len(classImgs)):
-        curDist = getSegmentDistance(image, i)
-
-        if curDist < dist:
-            dist = curDist
-            classNum = i
-
-    return classNum
-
-class GMMImage:
-    def __init__(self, num_components=5, num_channel=3):
-        self.num_components = num_components
-        self.num_channels = num_channel
-        # 5 is the number of components grab cut uses.
-        self.model = mixture.GaussianMixture(n_components=num_components, covariance_type='full')
-
-    def fit(self, data: np.array):
-        assert data[1] == self.num_channels
-        self.model.fit(data)
-
-    def get_params_opencv(self) -> np.array:
-        ret = np.zeros(65)
-        ptr = 0
-
-        data_size = self.num_components
-        assert len(self.model.weights_) == data_size
-        ret[ptr: ptr + self.num_components] = self.model.weights_
-        ptr += data_size
-
-        data_size = self.num_components * self.num_channels
-        assert len(self.model.means_.flatten()) == data_size
-        ret[ptr: ptr + data_size] = self.model.means_.flatten()
-        ptr += data_size
-
-        data_size = self.num_components * self.num_channels * self.num_channels
-        assert len(self.model.covariances_.flatten()) == data_size
-        ret[ptr: ptr + data_size] = self.model.covariances_.flatten()
-        ptr += data_size
-
-        return ret
-
-
 
 def onmouse(event, x, y, flags, param):
     global img, img2, drawing, value, mask, rectangle, rect, rect_or_mask, ix, iy, rect_over
@@ -249,20 +142,6 @@ if __name__ == '__main__':
         filename = 'lena.jpg'
 
     img = cv2.imread(filename)
-    imgGray1 = cv2.cvtColor(classImgs[0][0], cv2.COLOR_BGR2GRAY)
-    imgGray2 = cv2.cvtColor(classImgs[0][1], cv2.COLOR_BGR2GRAY)
-
-    moment1 = getCentralMoments(imgGray1)
-    moment2 = getCentralMoments(imgGray2)
-
-    print(moment2)
-
-    huMoment1 = getHuMoments(moment1)
-    huMoment2 = getHuMoments(moment2)
- 
-    print(getHuDistance(huMoment1, huMoment2))
-
-    print
 
     img2 = img.copy()  # a copy of original image
     mask = np.zeros(img.shape[:2], dtype=np.uint8)  # mask initialized to PR_BG
