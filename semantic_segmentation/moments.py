@@ -1,4 +1,13 @@
 import numpy as np
+import cv2
+
+classImgs = []
+
+def filter_and_flatten(image: np.ndarray, thresh_hold=200):
+    assert image.shape[2] == 4  # assert it has alpha channel
+    ret = np.reshape(image, (-1, 4))
+    ret = np.array([visible[:3] for visible in ret if visible[3] > thresh_hold])
+    return ret
 
 def getCentralMoments(image):
     assert len(image.shape) == 2
@@ -48,7 +57,7 @@ def getSegmentDistance(image, classNum):
     segmentHuMoments = getHuMoments(segmentMoments)
 
     for i in range(0, 4):
-        classMoments = getCentralMoments(classImg[classNum][i])
+        classMoments = getCentralMoments(classImgs[classNum][i])
         classHuMoments = getHuMoments(classMoments)
         curDist = getHuDistance(segmentHuMoments, classHuMoments)
 
@@ -72,8 +81,32 @@ def getSegmentClass(image):
     return classNum
 
 if __name__ == '__main__':
-    imgGray1 = cv2.cvtColor(classImgs[0][0], cv2.COLOR_BGR2GRAY)
-    imgGray2 = cv2.cvtColor(classImgs[0][1], cv2.COLOR_BGR2GRAY)
+
+    # Build training sets
+    cars = []
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car1.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car2.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car3.png"))
+    cars.append(cv2.imread("Training Set/Foreground/Car/Car4.png"))
+
+    flowers = []
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower1.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower2.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower3.png"))
+    flowers.append(cv2.imread("Training Set/Foreground/Flower/Flower4.png"))
+
+    classImgs.append(cars)
+    classImgs.append(flowers)
+
+    testCar = cv2.imread("../test_foreground.png")
+    testCarGray = cv2.cvtColor(testCar, cv2.COLOR_BGR2GRAY)
+
+    for i in range(0, len(classImgs)):
+        for j in range(0, len(classImgs[i])):
+            classImgs[i][j] = cv2.cvtColor(classImgs[i][j], cv2.COLOR_BGR2GRAY)
+
+    imgGray1 = classImgs[0][0]
+    imgGray2 = classImgs[0][1]
 
     moment1 = getCentralMoments(imgGray1)
     moment2 = getCentralMoments(imgGray2)
@@ -85,4 +118,4 @@ if __name__ == '__main__':
  
     print(getHuDistance(huMoment1, huMoment2))
 
-    print(getSegment(classImgs[0][0]))
+    print(getSegmentClass(filter_and_flatten(testCarGray)))
